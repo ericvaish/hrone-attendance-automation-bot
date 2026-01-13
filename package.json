@@ -1,0 +1,14 @@
+{
+  "name": "attendance",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node index.js --test"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "dotenv": "^16.3.1",
+    "node-cron": "^3.0.3"
+  }
+}

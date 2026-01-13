@@ -1,0 +1,7 @@
+node_modules
+auth.json
+cookies.json
+*.png
+captured-cookies.json
+.env
+

@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# Auth cache (contains JWT tokens)
+auth.json
+cookies.json
+captured-cookies.json
+
+# Debug files and folders
+Dev/
+*.png
+debug-*.png
+error-*.png
+capture-api.js
+prompt.MD
+prompt.md
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+dist/
+build/
+
+/Dev

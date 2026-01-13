@@ -1,0 +1,12 @@
+services:
+  attendance:
+    build: .
+    container_name: attendance
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Kolkata
+    env_file:
+      - .env
+    volumes:
+      # Persist auth data so it survives restarts
+      - ./auth.json:/app/auth.json
