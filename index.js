@@ -7,8 +7,14 @@ dotenv.config();
 
 const LOGIN_URL = 'https://app.hrone.cloud/login';
 const API_BASE = 'https://app.hrone.cloud/api';
-const COOKIES_FILE = './cookies.json';
-const AUTH_FILE = './auth.json';
+const DATA_DIR = './data';
+const COOKIES_FILE = `${DATA_DIR}/cookies.json`;
+const AUTH_FILE = `${DATA_DIR}/auth.json`;
+
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 const USERNAME = process.env.USERNAME;
 const PASSWORD = process.env.PASSWORD;

@@ -9,4 +9,4 @@ services:
       - .env
     volumes:
       # Persist auth data so it survives restarts
-      - ./auth.json:/app/auth.json
+      - ./data:/app/data
