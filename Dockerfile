@@ -23,11 +23,14 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Install pnpm
+RUN npm install -g pnpm
+
 # Copy package files
-COPY package*.json ./
+COPY package*.json pnpm-lock.yaml ./
 
 # Install dependencies
-RUN npm install
+RUN pnpm install --frozen-lockfile
 
 # Install Playwright browsers
 RUN npx playwright install chromium
