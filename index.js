@@ -10,6 +10,8 @@ const API_BASE = 'https://app.hrone.cloud/api';
 const DATA_DIR = './data';
 const COOKIES_FILE = `${DATA_DIR}/cookies.json`;
 const AUTH_FILE = `${DATA_DIR}/auth.json`;
+const CONFIG_FILE = `${DATA_DIR}/config.json`;
+const PUNCH_HISTORY_FILE = `${DATA_DIR}/punch_history.json`;
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -20,20 +22,61 @@ const USERNAME = process.env.USERNAME;
 const PASSWORD = process.env.PASSWORD;
 const DOMAIN_CODE = process.env.DOMAIN_CODE;
 
-// Schedule configuration (24-hour format)
-// Morning: punch between MORNING_START and MORNING_END
-// Evening: punch between EVENING_START and EVENING_END
-const MORNING_START = process.env.MORNING_START || '08:00';  // e.g., "08:00"
-const MORNING_END = process.env.MORNING_END || '08:30';      // e.g., "08:30"
-const EVENING_START = process.env.EVENING_START || '17:50';  // e.g., "17:50"
-const EVENING_END = process.env.EVENING_END || '18:00';      // e.g., "18:00"
-
 // Optional: Google Chat webhook for notifications
 const GOOGLE_CHAT_WEBHOOK_URL = process.env.GOOGLE_CHAT_WEBHOOK_URL;
 
 if (!USERNAME || !PASSWORD || !DOMAIN_CODE) {
   console.error('❌ Missing USERNAME, PASSWORD, or DOMAIN_CODE in .env file');
   process.exit(1);
+}
+
+// Load config from file (shared with web dashboard)
+function loadConfig() {
+  const defaultConfig = {
+    enabled: true,
+    skipDates: [],
+    morningStart: process.env.MORNING_START || '08:00',
+    morningEnd: process.env.MORNING_END || '08:30',
+    eveningStart: process.env.EVENING_START || '17:50',
+    eveningEnd: process.env.EVENING_END || '18:00',
+  };
+  
+  if (fs.existsSync(CONFIG_FILE)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+      return { ...defaultConfig, ...config };
+    } catch {
+      return defaultConfig;
+    }
+  }
+  return defaultConfig;
+}
+
+// Save punch history
+function savePunchHistory(entry) {
+  let history = [];
+  if (fs.existsSync(PUNCH_HISTORY_FILE)) {
+    try {
+      history = JSON.parse(fs.readFileSync(PUNCH_HISTORY_FILE, 'utf-8'));
+    } catch {
+      history = [];
+    }
+  }
+  
+  history.push(entry);
+  
+  // Keep only last 100 entries
+  if (history.length > 100) {
+    history = history.slice(-100);
+  }
+  
+  fs.writeFileSync(PUNCH_HISTORY_FILE, JSON.stringify(history, null, 2));
+}
+
+// Check if today should be skipped
+function shouldSkipToday(config) {
+  const today = new Date().toISOString().slice(0, 10);
+  return (config.skipDates || []).some(d => d.date === today);
 }
 
 // Parse time string "HH:MM" to { hour, minute }
@@ -185,7 +228,7 @@ async function apiRequest(endpoint, method = 'GET', body = null, auth) {
 }
 
 // Mark attendance via API
-async function markAttendanceAPI(auth) {
+async function markAttendanceAPI(auth, punchType = 'auto') {
   const now = new Date();
   // Format as local time: YYYY-MM-DDTHH:mm
   const year = now.getFullYear();
@@ -224,14 +267,29 @@ async function markAttendanceAPI(auth) {
   
   const result = await response.json();
   
+  // Determine punch type for history
+  const hour = now.getHours();
+  const type = punchType === 'auto' ? (hour < 12 ? 'Morning' : 'Evening') : punchType;
+  
+  // Save to punch history
+  const historyEntry = {
+    date: `${year}-${month}-${day}`,
+    time: `${hours}:${minutes}`,
+    type: type,
+    success: result.message === 'Record saved successfully.',
+    message: result.message,
+    punchTime: punchTime,
+    recordedAt: now.toISOString(),
+  };
+  savePunchHistory(historyEntry);
+  
   if (result.message === 'Record saved successfully.') {
     log('✅ Attendance marked successfully!');
     
     // Send Google Chat notification (optional)
-    const hour = now.getHours();
-    const punchType = hour < 12 ? '🌅 Morning Punch-In' : '🌆 Evening Punch-Out';
+    const punchTypeLabel = hour < 12 ? '🌅 Morning Punch-In' : '🌆 Evening Punch-Out';
     await sendGoogleChatNotification(
-      `${punchType}\n✅ Attendance marked at ${punchTime.replace('T', ' ')}`
+      `${punchTypeLabel}\n✅ Attendance marked at ${punchTime.replace('T', ' ')}`
     );
     
     return true;
@@ -263,10 +321,27 @@ async function checkAttendanceStatus(auth) {
 }
 
 // Main function
-async function runAttendanceBot() {
+async function runAttendanceBot(punchType = 'auto') {
   log('');
   log('🤖 HROne Attendance Bot');
   log('='.repeat(50));
+  
+  // Check config first
+  const config = loadConfig();
+  
+  // Check if bot is disabled
+  if (!config.enabled) {
+    log('⏸️ Bot is disabled via dashboard. Skipping...');
+    return;
+  }
+  
+  // Check if today is a skip date
+  if (shouldSkipToday(config)) {
+    const today = new Date().toISOString().slice(0, 10);
+    const skipInfo = config.skipDates.find(d => d.date === today);
+    log(`⏭️ Skipping today (${today}): ${skipInfo?.reason || 'Marked as skip date'}`);
+    return;
+  }
   
   try {
     // Try to load existing auth
@@ -294,24 +369,84 @@ async function runAttendanceBot() {
     await checkAttendanceStatus(auth);
     
     // Mark attendance
-    const success = await markAttendanceAPI(auth);
+    const success = await markAttendanceAPI(auth, punchType);
     
     if (!success) {
       // Maybe auth expired, try refreshing
       log('🔄 Retrying with fresh login...');
       auth = await loginAndGetAuth();
-      await markAttendanceAPI(auth);
+      await markAttendanceAPI(auth, punchType);
     }
     
   } catch (error) {
     if (error.message === 'AUTH_EXPIRED') {
       log('🔄 Auth expired, logging in again...');
       const auth = await loginAndGetAuth();
-      await markAttendanceAPI(auth);
+      await markAttendanceAPI(auth, punchType);
     } else {
       log(`❌ Error: ${error.message}`);
+      
+      // Save failed attempt to history
+      const now = new Date();
+      savePunchHistory({
+        date: now.toISOString().slice(0, 10),
+        time: now.toTimeString().slice(0, 5),
+        type: punchType === 'auto' ? (now.getHours() < 12 ? 'Morning' : 'Evening') : punchType,
+        success: false,
+        message: error.message,
+        recordedAt: now.toISOString(),
+      });
     }
   }
+}
+
+// Schedule jobs based on config
+function scheduleJobs() {
+  const config = loadConfig();
+  
+  const morningStart = parseTime(config.morningStart);
+  const eveningStart = parseTime(config.eveningStart);
+  
+  log('🚀 Starting HROne Attendance Bot');
+  log('📅 Schedule (Mon-Fri):');
+  log(`   • Morning: ${config.morningStart} - ${config.morningEnd}`);
+  log(`   • Evening: ${config.eveningStart} - ${config.eveningEnd}`);
+  log(`💬 Google Chat: ${GOOGLE_CHAT_WEBHOOK_URL ? 'Enabled' : 'Disabled'}`);
+  log('Press Ctrl+C to stop\n');
+  
+  // Schedule for morning (at MORNING_START time, then add random delay)
+  const morningCron = `${morningStart.minute} ${morningStart.hour} * * 1-5`;
+  cron.schedule(morningCron, () => {
+    const currentConfig = loadConfig(); // Reload config
+    const delayMinutes = getRandomDelayBetweenTimes(currentConfig.morningStart, currentConfig.morningEnd);
+    log(`📅 Morning punch scheduled: ${currentConfig.morningStart} + ${delayMinutes} min delay`);
+    
+    setTimeout(() => {
+      log(`\n⏰ Morning punch-in`);
+      runAttendanceBot('Morning');
+    }, delayMinutes * 60 * 1000);
+  });
+  
+  // Schedule for evening (at EVENING_START time, then add random delay)
+  const eveningCron = `${eveningStart.minute} ${eveningStart.hour} * * 1-5`;
+  cron.schedule(eveningCron, () => {
+    const currentConfig = loadConfig(); // Reload config
+    const delayMinutes = getRandomDelayBetweenTimes(currentConfig.eveningStart, currentConfig.eveningEnd);
+    log(`📅 Evening punch scheduled: ${currentConfig.eveningStart} + ${delayMinutes} min delay`);
+    
+    setTimeout(() => {
+      log(`\n⏰ Evening punch-out`);
+      runAttendanceBot('Evening');
+    }, delayMinutes * 60 * 1000);
+  });
+  
+  log('💤 Bot is running... waiting for scheduled times');
+  log(`📍 Current time: ${new Date().toLocaleString()}`);
+  
+  // Keep process alive and log heartbeat every hour
+  setInterval(() => {
+    log('💓 Heartbeat - bot still running');
+  }, 60 * 60 * 1000);
 }
 
 // Check if running in test mode
@@ -324,45 +459,5 @@ if (isTestMode) {
     process.exit(0);
   });
 } else {
-  const morningStart = parseTime(MORNING_START);
-  const eveningStart = parseTime(EVENING_START);
-  
-  log('🚀 Starting HROne Attendance Bot');
-  log('📅 Schedule (Mon-Fri):');
-  log(`   • Morning: ${MORNING_START} - ${MORNING_END}`);
-  log(`   • Evening: ${EVENING_START} - ${EVENING_END}`);
-  log(`💬 Google Chat: ${GOOGLE_CHAT_WEBHOOK_URL ? 'Enabled' : 'Disabled'}`);
-  log('Press Ctrl+C to stop\n');
-  
-  // Schedule for morning (at MORNING_START time, then add random delay)
-  const morningCron = `${morningStart.minute} ${morningStart.hour} * * 1-5`;
-  cron.schedule(morningCron, () => {
-    const delayMinutes = getRandomDelayBetweenTimes(MORNING_START, MORNING_END);
-    log(`📅 Morning punch scheduled: ${MORNING_START} + ${delayMinutes} min delay`);
-    
-    setTimeout(() => {
-      log(`\n⏰ Morning punch-in`);
-      runAttendanceBot();
-    }, delayMinutes * 60 * 1000);
-  });
-  
-  // Schedule for evening (at EVENING_START time, then add random delay)
-  const eveningCron = `${eveningStart.minute} ${eveningStart.hour} * * 1-5`;
-  cron.schedule(eveningCron, () => {
-    const delayMinutes = getRandomDelayBetweenTimes(EVENING_START, EVENING_END);
-    log(`📅 Evening punch scheduled: ${EVENING_START} + ${delayMinutes} min delay`);
-    
-    setTimeout(() => {
-      log(`\n⏰ Evening punch-out`);
-      runAttendanceBot();
-    }, delayMinutes * 60 * 1000);
-  });
-  
-  log('💤 Bot is running... waiting for scheduled times');
-  log(`📍 Current time: ${new Date().toLocaleString()}`);
-  
-  // Keep process alive and log heartbeat every hour
-  setInterval(() => {
-    log('💓 Heartbeat - bot still running');
-  }, 60 * 60 * 1000);
+  scheduleJobs();
 }
