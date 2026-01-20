@@ -23,11 +23,14 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Install pnpm
+RUN npm install -g pnpm
+
 # Copy package files
-COPY package*.json ./
+COPY package*.json pnpm-lock.yaml ./
 
 # Install dependencies
-RUN npm install
+RUN pnpm install --frozen-lockfile
 
 # Install Playwright browsers
 RUN npx playwright install chromium
@@ -38,4 +41,8 @@ COPY . .
 # Set timezone (change to your timezone)
 ENV TZ=Asia/Kolkata
 
-CMD ["node", "index.js"]
+# Expose web dashboard port
+EXPOSE 3000
+
+# Start both the bot and web dashboard
+CMD ["sh", "-c", "node server.js & node index.js"]

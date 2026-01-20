@@ -4,11 +4,16 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "test": "node index.js --test"
+    "test": "node index.js --test",
+    "dashboard": "node server.js",
+    "dev": "node server.js & node index.js"
   },
   "dependencies": {
-    "playwright": "^1.40.0",
+    "bcryptjs": "^2.4.3",
     "dotenv": "^16.3.1",
-    "node-cron": "^3.0.3"
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "node-cron": "^3.0.3",
+    "playwright": "^1.40.0"
   }
 }

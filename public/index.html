@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Bot Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-900);
+      min-height: 100vh;
+    }
+
+    .login-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .login-box {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .login-box h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .login-box p {
+      color: var(--gray-500);
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--gray-700);
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--gray-300);
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--gray-300);
+      color: var(--gray-700);
+    }
+
+    .btn-outline:hover {
+      background: var(--gray-50);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .error-msg {
+      background: #fef2f2;
+      color: var(--danger);
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    /* Dashboard */
+    .dashboard {
+      display: none;
+    }
+
+    .header {
+      background: white;
+      padding: 16px 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .user-info {
+      font-size: 14px;
+      color: var(--gray-500);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    /* Status Card */
+    .status-card {
+      grid-column: span 2;
+    }
+
+    .status-display {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.enabled {
+      background: var(--success);
+    }
+
+    .status-dot.disabled {
+      background: var(--danger);
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .status-text {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .status-text.enabled {
+      color: var(--success);
+    }
+
+    .status-text.disabled {
+      color: var(--danger);
+    }
+
+    /* Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      width: 56px;
+      height: 28px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--gray-300);
+      transition: 0.3s;
+      border-radius: 28px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: var(--success);
+    }
+
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(28px);
+    }
+
+    /* Schedule */
+    .schedule-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .schedule-item {
+      padding: 12px;
+      background: var(--gray-50);
+      border-radius: 8px;
+    }
+
+    .schedule-item label {
+      font-size: 12px;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .schedule-item input {
+      margin-top: 4px;
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    /* Skip Dates */
+    .skip-dates-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .skip-date-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .skip-date-item:last-child {
+      border-bottom: none;
+    }
+
+    .skip-date-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .skip-date-date {
+      font-weight: 500;
+    }
+
+    .skip-date-reason {
+      font-size: 12px;
+      color: var(--gray-500);
+    }
+
+    .add-date-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .add-date-form input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: var(--gray-500);
+    }
+
+    /* Table */
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    th {
+      background: var(--gray-50);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      font-size: 14px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge-success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    /* Full Width Cards */
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .status-card {
+        grid-column: span 1;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .schedule-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .add-date-form {
+        flex-direction: column;
+      }
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: var(--gray-900);
+      color: white;
+      border-radius: 8px;
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.success {
+      background: var(--success);
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 400px;
+      margin: 20px;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .modal-header h3 {
+      font-size: 16px;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--gray-200);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Page -->
+  <div id="loginPage" class="login-container">
+    <div class="login-box">
+      <h1>Attendance Bot</h1>
+      <p>Sign in to access the dashboard</p>
+      <div id="loginError" class="error-msg"></div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="dashboard">
+    <header class="header">
+      <h1>Attendance Bot Dashboard</h1>
+      <div class="header-right">
+        <span class="user-info">Welcome, <strong id="usernameDisplay"></strong></span>
+        <button class="btn btn-outline btn-sm" onclick="showPasswordModal()">Change Password</button>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="grid">
+        <!-- Status Card -->
+        <div class="card status-card">
+          <div class="card-header">
+            <h2>Bot Status</h2>
+          </div>
+          <div class="card-body">
+            <div class="status-display">
+              <div class="status-indicator">
+                <div id="statusDot" class="status-dot enabled"></div>
+                <span id="statusText" class="status-text enabled">Active</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="botToggle" checked onchange="toggleBot()">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Punch Schedule</h2>
+            <button class="btn btn-primary btn-sm" onclick="saveSchedule()">Save</button>
+          </div>
+          <div class="card-body">
+            <div class="schedule-grid">
+              <div class="schedule-item">
+                <label>Morning Start</label>
+                <input type="time" id="morningStart" value="08:00">
+              </div>
+              <div class="schedule-item">
+                <label>Morning End</label>
+                <input type="time" id="morningEnd" value="08:30">
+              </div>
+              <div class="schedule-item">
+                <label>Evening Start</label>
+                <input type="time" id="eveningStart" value="17:50">
+              </div>
+              <div class="schedule-item">
+                <label>Evening End</label>
+                <input type="time" id="eveningEnd" value="18:00">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Skip Dates Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Skip Dates</h2>
+          </div>
+          <div class="card-body">
+            <div class="add-date-form">
+              <input type="date" id="skipDate" placeholder="Date">
+              <input type="text" id="skipReason" placeholder="Reason (optional)">
+              <button class="btn btn-primary btn-sm" onclick="addSkipDate()">Add</button>
+            </div>
+            <div id="skipDatesList" class="skip-dates-list">
+              <div class="empty-state">No skip dates configured</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pending Punches Card -->
+        <div class="card full-width">
+          <div class="card-header">
+            <h2>Upcoming Punches (Next 7 Days)</h2>
+            <button class="btn btn-outline btn-sm" onclick="loadPendingPunches()">Refresh</button>
+          </div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Type</th>
+                    <th>Time Window</th>
+                  </tr>
+                </thead>
+                <tbody id="pendingPunchesTable">
+                  <tr>
+                    <td colspan="4" class="empty-state">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Punch History Card -->
+        <div class="card full-width">
+          <div class="card-header">
+            <h2>Punch History</h2>
+            <button class="btn btn-outline btn-sm" onclick="loadPunchHistory()">Refresh</button>
+          </div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="punchHistoryTable">
+                  <tr>
+                    <td colspan="4" class="empty-state">Loading...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Password Change Modal -->
+  <div id="passwordModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Change Password</h3>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="currentPassword">Current Password</label>
+          <input type="password" id="currentPassword">
+        </div>
+        <div class="form-group">
+          <label for="newPassword">New Password</label>
+          <input type="password" id="newPassword">
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="hidePasswordModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="changePassword()">Change Password</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // State
+    let config = {};
+
+    // DOM Elements
+    const loginPage = document.getElementById('loginPage');
+    const dashboard = document.getElementById('dashboard');
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+
+    // Check auth on load
+    document.addEventListener('DOMContentLoaded', checkAuth);
+
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/auth/status');
+        const data = await res.json();
+        if (data.authenticated) {
+          showDashboard(data.username);
+        } else {
+          showLogin();
+        }
+      } catch (err) {
+        showLogin();
+      }
+    }
+
+    function showLogin() {
+      loginPage.style.display = 'flex';
+      dashboard.style.display = 'none';
+    }
+
+    function showDashboard(username) {
+      loginPage.style.display = 'none';
+      dashboard.style.display = 'block';
+      document.getElementById('usernameDisplay').textContent = username;
+      loadAllData();
+    }
+
+    // Login
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showDashboard(data.username);
+        } else {
+          loginError.textContent = data.error || 'Login failed';
+          loginError.style.display = 'block';
+        }
+      } catch (err) {
+        loginError.textContent = 'Connection error';
+        loginError.style.display = 'block';
+      }
+    });
+
+    // Logout
+    async function logout() {
+      await fetch('/api/logout', { method: 'POST' });
+      showLogin();
+    }
+
+    // Load all data
+    async function loadAllData() {
+      await loadConfig();
+      await loadSkipDates();
+      await loadPendingPunches();
+      await loadPunchHistory();
+    }
+
+    // Load config
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config');
+        config = await res.json();
+        
+        // Update UI
+        document.getElementById('botToggle').checked = config.enabled;
+        updateStatusDisplay(config.enabled);
+        
+        document.getElementById('morningStart').value = config.morningStart || '08:00';
+        document.getElementById('morningEnd').value = config.morningEnd || '08:30';
+        document.getElementById('eveningStart').value = config.eveningStart || '17:50';
+        document.getElementById('eveningEnd').value = config.eveningEnd || '18:00';
+      } catch (err) {
+        showToast('Failed to load config', 'error');
+      }
+    }
+
+    // Update status display
+    function updateStatusDisplay(enabled) {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      
+      if (enabled) {
+        dot.className = 'status-dot enabled';
+        text.className = 'status-text enabled';
+        text.textContent = 'Active';
+      } else {
+        dot.className = 'status-dot disabled';
+        text.className = 'status-text disabled';
+        text.textContent = 'Disabled';
+      }
+    }
+
+    // Toggle bot
+    async function toggleBot() {
+      try {
+        const res = await fetch('/api/config/toggle', { method: 'POST' });
+        const data = await res.json();
+        config.enabled = data.enabled;
+        updateStatusDisplay(data.enabled);
+        showToast(data.enabled ? 'Bot enabled' : 'Bot disabled', 'success');
+        loadPendingPunches();
+      } catch (err) {
+        showToast('Failed to toggle bot', 'error');
+      }
+    }
+
+    // Save schedule
+    async function saveSchedule() {
+      const schedule = {
+        morningStart: document.getElementById('morningStart').value,
+        morningEnd: document.getElementById('morningEnd').value,
+        eveningStart: document.getElementById('eveningStart').value,
+        eveningEnd: document.getElementById('eveningEnd').value,
+      };
+
+      try {
+        const res = await fetch('/api/schedule', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(schedule),
+        });
+        
+        if (res.ok) {
+          showToast('Schedule saved', 'success');
+          loadPendingPunches();
+        } else {
+          showToast('Failed to save schedule', 'error');
+        }
+      } catch (err) {
+        showToast('Failed to save schedule', 'error');
+      }
+    }
+
+    // Load skip dates
+    async function loadSkipDates() {
+      try {
+        const res = await fetch('/api/skip-dates');
+        const data = await res.json();
+        renderSkipDates(data.skipDates);
+      } catch (err) {
+        showToast('Failed to load skip dates', 'error');
+      }
+    }
+
+    // Render skip dates
+    function renderSkipDates(dates) {
+      const container = document.getElementById('skipDatesList');
+      
+      if (!dates || dates.length === 0) {
+        container.innerHTML = '<div class="empty-state">No skip dates configured</div>';
+        return;
+      }
+
+      container.innerHTML = dates.map(d => `
+        <div class="skip-date-item">
+          <div class="skip-date-info">
+            <span class="skip-date-date">${formatDate(d.date)}</span>
+            ${d.reason ? `<span class="skip-date-reason">${d.reason}</span>` : ''}
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="removeSkipDate('${d.date}')">Remove</button>
+        </div>
+      `).join('');
+    }
+
+    // Add skip date
+    async function addSkipDate() {
+      const date = document.getElementById('skipDate').value;
+      const reason = document.getElementById('skipReason').value;
+
+      if (!date) {
+        showToast('Please select a date', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/skip-dates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, reason }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          renderSkipDates(data.skipDates);
+          document.getElementById('skipDate').value = '';
+          document.getElementById('skipReason').value = '';
+          showToast('Date added', 'success');
+          loadPendingPunches();
+        } else {
+          const err = await res.json();
+          showToast(err.error || 'Failed to add date', 'error');
+        }
+      } catch (err) {
+        showToast('Failed to add date', 'error');
+      }
+    }
+
+    // Remove skip date
+    async function removeSkipDate(date) {
+      try {
+        const res = await fetch(`/api/skip-dates/${date}`, { method: 'DELETE' });
+        if (res.ok) {
+          const data = await res.json();
+          renderSkipDates(data.skipDates);
+          showToast('Date removed', 'success');
+          loadPendingPunches();
+        }
+      } catch (err) {
+        showToast('Failed to remove date', 'error');
+      }
+    }
+
+    // Load pending punches
+    async function loadPendingPunches() {
+      try {
+        const res = await fetch('/api/pending-punches');
+        const data = await res.json();
+        renderPendingPunches(data.pending, data.message);
+      } catch (err) {
+        showToast('Failed to load pending punches', 'error');
+      }
+    }
+
+    // Render pending punches
+    function renderPendingPunches(punches, message) {
+      const tbody = document.getElementById('pendingPunchesTable');
+      
+      if (message) {
+        tbody.innerHTML = `<tr><td colspan="4" class="empty-state">${message}</td></tr>`;
+        return;
+      }
+
+      if (!punches || punches.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No pending punches</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = punches.map(p => `
+        <tr>
+          <td>${formatDate(p.date)}</td>
+          <td>${getDayName(p.date)}</td>
+          <td><span class="badge ${p.type === 'Morning' ? 'badge-info' : 'badge-warning'}">${p.type}</span></td>
+          <td>${p.window}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Load punch history
+    async function loadPunchHistory() {
+      try {
+        const res = await fetch('/api/punch-history');
+        const data = await res.json();
+        renderPunchHistory(data.history);
+      } catch (err) {
+        showToast('Failed to load punch history', 'error');
+      }
+    }
+
+    // Render punch history
+    function renderPunchHistory(history) {
+      const tbody = document.getElementById('punchHistoryTable');
+      
+      if (!history || history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No punch history available</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = history.map(h => `
+        <tr>
+          <td>${formatDate(h.date)}</td>
+          <td>${h.time}</td>
+          <td><span class="badge ${h.type === 'Morning' ? 'badge-info' : 'badge-warning'}">${h.type}</span></td>
+          <td><span class="badge ${h.success ? 'badge-success' : 'badge-warning'}">${h.success ? 'Success' : 'Failed'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // Password modal
+    function showPasswordModal() {
+      document.getElementById('passwordModal').classList.add('show');
+    }
+
+    function hidePasswordModal() {
+      document.getElementById('passwordModal').classList.remove('show');
+      document.getElementById('currentPassword').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('confirmPassword').value = '';
+    }
+
+    async function changePassword() {
+      const current = document.getElementById('currentPassword').value;
+      const newPass = document.getElementById('newPassword').value;
+      const confirm = document.getElementById('confirmPassword').value;
+
+      if (newPass !== confirm) {
+        showToast('Passwords do not match', 'error');
+        return;
+      }
+
+      if (newPass.length < 6) {
+        showToast('Password must be at least 6 characters', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword: current, newPassword: newPass }),
+        });
+
+        if (res.ok) {
+          showToast('Password changed successfully', 'success');
+          hidePasswordModal();
+        } else {
+          const err = await res.json();
+          showToast(err.error || 'Failed to change password', 'error');
+        }
+      } catch (err) {
+        showToast('Failed to change password', 'error');
+      }
+    }
+
+    // Helpers
+    function formatDate(dateStr) {
+      const date = new Date(dateStr + 'T00:00:00');
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function getDayName(dateStr) {
+      const date = new Date(dateStr + 'T00:00:00');
+      return date.toLocaleDateString('en-US', { weekday: 'long' });
+    }
+
+    // Toast
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type} show`;
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
