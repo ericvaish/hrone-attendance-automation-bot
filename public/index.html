@@ -198,6 +198,7 @@
       border-radius: 12px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       overflow: hidden;
+      min-width: 0;
     }
 
     .card-header {
@@ -265,6 +266,32 @@
     }
 
     .status-text.disabled {
+      color: var(--danger);
+    }
+
+    .test-punch-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .test-punch-status {
+      font-size: 14px;
+      color: var(--gray-500);
+    }
+
+    .test-punch-status.loading {
+      color: var(--warning);
+    }
+
+    .test-punch-status.success {
+      color: var(--success);
+    }
+
+    .test-punch-status.error {
       color: var(--danger);
     }
 
@@ -360,27 +387,18 @@
       border-bottom: none;
     }
 
-    .skip-date-info {
-      display: flex;
-      flex-direction: column;
-    }
-
     .skip-date-date {
       font-weight: 500;
     }
 
-    .skip-date-reason {
-      font-size: 12px;
-      color: var(--gray-500);
-    }
-
     .add-date-form {
       display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       margin-bottom: 16px;
     }
 
-    .add-date-form input {
+    .add-date-form input[type="date"] {
       flex: 1;
       padding: 8px 12px;
       border: 1px solid var(--gray-300);
@@ -601,6 +619,10 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
+            <div class="test-punch-section">
+              <button class="btn btn-success btn-sm" id="testPunchBtn" onclick="triggerTestPunch()">Test Punch Now</button>
+              <span id="testPunchStatus" class="test-punch-status"></span>
+            </div>
           </div>
         </div>
 
@@ -639,8 +661,7 @@
           </div>
           <div class="card-body">
             <div class="add-date-form">
-              <input type="date" id="skipDate" placeholder="Date">
-              <input type="text" id="skipReason" placeholder="Reason (optional)">
+              <input type="date" id="skipDate" name="skip-date" autocomplete="new-password">
               <button class="btn btn-primary btn-sm" onclick="addSkipDate()">Add</button>
             </div>
             <div id="skipDatesList" class="skip-dates-list">
@@ -864,6 +885,51 @@
       }
     }
 
+    // Test punch
+    async function triggerTestPunch() {
+      const btn = document.getElementById('testPunchBtn');
+      const status = document.getElementById('testPunchStatus');
+      
+      btn.disabled = true;
+      btn.textContent = 'Punching...';
+      status.textContent = 'Connecting to HROne...';
+      status.className = 'test-punch-status loading';
+      
+      try {
+        const res = await fetch('/api/trigger-punch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'auto' }),
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+          status.textContent = 'Punch successful!';
+          status.className = 'test-punch-status success';
+          showToast('Test punch completed successfully', 'success');
+          loadPunchHistory();
+        } else {
+          status.textContent = data.error || 'Punch failed';
+          status.className = 'test-punch-status error';
+          showToast(data.error || 'Test punch failed', 'error');
+        }
+      } catch (err) {
+        status.textContent = 'Connection error';
+        status.className = 'test-punch-status error';
+        showToast('Failed to trigger test punch', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Test Punch Now';
+        
+        // Clear status after 5 seconds
+        setTimeout(() => {
+          status.textContent = '';
+          status.className = 'test-punch-status';
+        }, 5000);
+      }
+    }
+
     // Save schedule
     async function saveSchedule() {
       const schedule = {
@@ -913,10 +979,7 @@
 
       container.innerHTML = dates.map(d => `
         <div class="skip-date-item">
-          <div class="skip-date-info">
-            <span class="skip-date-date">${formatDate(d.date)}</span>
-            ${d.reason ? `<span class="skip-date-reason">${d.reason}</span>` : ''}
-          </div>
+          <span class="skip-date-date">${formatDate(d.date)}</span>
           <button class="btn btn-danger btn-sm" onclick="removeSkipDate('${d.date}')">Remove</button>
         </div>
       `).join('');
@@ -925,7 +988,6 @@
     // Add skip date
     async function addSkipDate() {
       const date = document.getElementById('skipDate').value;
-      const reason = document.getElementById('skipReason').value;
 
       if (!date) {
         showToast('Please select a date', 'error');
@@ -936,14 +998,13 @@
         const res = await fetch('/api/skip-dates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date, reason }),
+          body: JSON.stringify({ date }),
         });
 
         if (res.ok) {
           const data = await res.json();
           renderSkipDates(data.skipDates);
           document.getElementById('skipDate').value = '';
-          document.getElementById('skipReason').value = '';
           showToast('Date added', 'success');
           loadPendingPunches();
         } else {

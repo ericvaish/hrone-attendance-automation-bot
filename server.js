@@ -223,6 +223,67 @@ app.get('/api/punch-history', requireAuth, (req, res) => {
   res.json({ history: history.slice(-30).reverse() });
 });
 
+// Trigger manual punch
+const TRIGGER_FILE = `${DATA_DIR}/trigger_punch.json`;
+const RESULT_FILE = `${DATA_DIR}/trigger_result.json`;
+
+app.post('/api/trigger-punch', requireAuth, async (req, res) => {
+  const { type } = req.body; // 'Morning', 'Evening', or 'auto'
+  
+  // Check if a trigger is already pending
+  if (fs.existsSync(TRIGGER_FILE)) {
+    return res.status(400).json({ error: 'A punch is already in progress' });
+  }
+  
+  // Clear any old result file
+  if (fs.existsSync(RESULT_FILE)) {
+    fs.unlinkSync(RESULT_FILE);
+  }
+  
+  // Write trigger file
+  const triggeredAt = new Date().toISOString();
+  fs.writeFileSync(TRIGGER_FILE, JSON.stringify({
+    type: type || 'auto',
+    triggeredAt,
+  }));
+  
+  // Wait for result (max 60 seconds)
+  const startTime = Date.now();
+  const timeout = 60000;
+  
+  const checkResult = () => {
+    return new Promise((resolve) => {
+      const interval = setInterval(() => {
+        if (fs.existsSync(RESULT_FILE)) {
+          clearInterval(interval);
+          try {
+            const result = JSON.parse(fs.readFileSync(RESULT_FILE, 'utf-8'));
+            fs.unlinkSync(RESULT_FILE);
+            resolve(result);
+          } catch {
+            resolve({ success: false, error: 'Failed to read result' });
+          }
+        } else if (Date.now() - startTime > timeout) {
+          clearInterval(interval);
+          // Clean up trigger file if still exists
+          if (fs.existsSync(TRIGGER_FILE)) {
+            fs.unlinkSync(TRIGGER_FILE);
+          }
+          resolve({ success: false, error: 'Timeout waiting for punch result' });
+        }
+      }, 1000);
+    });
+  };
+  
+  const result = await checkResult();
+  
+  if (result.success) {
+    res.json({ success: true, message: 'Punch completed successfully' });
+  } else {
+    res.status(500).json({ success: false, error: result.error || 'Punch failed' });
+  }
+});
+
 // Get future pending punches
 app.get('/api/pending-punches', requireAuth, (req, res) => {
   const config = loadConfig();

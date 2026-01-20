@@ -41,8 +41,11 @@ COPY . .
 # Set timezone (change to your timezone)
 ENV TZ=Asia/Kolkata
 
-# Expose web dashboard port
-EXPOSE 3000
+# Default web port (can be overridden)
+ENV WEB_PORT=3000
+
+# Expose web dashboard port (dynamic based on WEB_PORT env var)
+EXPOSE ${WEB_PORT}
 
 # Start both the bot and web dashboard
 CMD ["sh", "-c", "node server.js & node index.js"]

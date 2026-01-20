@@ -1,5 +1,5 @@
 services:
-  attendance:
+  attendance_eric:
     build: .
     container_name: attendance
     restart: unless-stopped
@@ -7,8 +7,25 @@ services:
       - TZ=Asia/Kolkata
     env_file:
       - .env
-    ports:
-      - "${WEB_PORT:-3000}:3000"
     volumes:
       # Persist auth data and config so it survives restarts
       - ./data:/app/data
+    command: node index.js
+
+  webui:
+    build: .
+    container_name: attendance-webui
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Kolkata
+      - WEB_PORT=${WEB_PORT:-3000}
+    env_file:
+      - .env
+    ports:
+      - "${WEB_PORT:-3000}:${WEB_PORT:-3000}"
+    volumes:
+      # Share data directory with attendance service
+      - ./data:/app/data
+    command: node server.js
+    depends_on:
+      - attendance

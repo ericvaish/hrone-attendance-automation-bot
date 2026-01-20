@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "skipDates": [],
+  "morningStart": "08:00",
+  "morningEnd": "08:30",
+  "eveningStart": "17:50",
+  "eveningEnd": "18:00"
+}

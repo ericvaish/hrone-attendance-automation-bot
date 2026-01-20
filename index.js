@@ -449,6 +449,39 @@ function scheduleJobs() {
   }, 60 * 60 * 1000);
 }
 
+// Watch for manual trigger file
+const TRIGGER_FILE = `${DATA_DIR}/trigger_punch.json`;
+
+function watchTriggerFile() {
+  setInterval(async () => {
+    if (fs.existsSync(TRIGGER_FILE)) {
+      try {
+        const trigger = JSON.parse(fs.readFileSync(TRIGGER_FILE, 'utf-8'));
+        fs.unlinkSync(TRIGGER_FILE); // Delete trigger file immediately
+        
+        log(`\n🔔 Manual punch triggered: ${trigger.type || 'auto'}`);
+        await runAttendanceBot(trigger.type || 'auto');
+        
+        // Write result file
+        const resultFile = `${DATA_DIR}/trigger_result.json`;
+        fs.writeFileSync(resultFile, JSON.stringify({
+          success: true,
+          triggeredAt: trigger.triggeredAt,
+          completedAt: new Date().toISOString(),
+        }));
+      } catch (err) {
+        log(`❌ Trigger error: ${err.message}`);
+        const resultFile = `${DATA_DIR}/trigger_result.json`;
+        fs.writeFileSync(resultFile, JSON.stringify({
+          success: false,
+          error: err.message,
+          completedAt: new Date().toISOString(),
+        }));
+      }
+    }
+  }, 2000); // Check every 2 seconds
+}
+
 // Check if running in test mode
 const isTestMode = process.argv.includes('--test');
 
@@ -460,4 +493,5 @@ if (isTestMode) {
   });
 } else {
   scheduleJobs();
+  watchTriggerFile();
 }
