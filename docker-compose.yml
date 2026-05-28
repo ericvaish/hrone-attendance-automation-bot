@@ -1,7 +1,7 @@
 services:
-  attendance_eric:
+  attendance_pratham:
     build: .
-    container_name: attendance
+    container_name: attendance_pratham
     restart: unless-stopped
     environment:
       - TZ=Asia/Kolkata
@@ -12,9 +12,9 @@ services:
       - ./data:/app/data
     command: node index.js
 
-  webui:
+  webui_pratham:
     build: .
-    container_name: attendance-webui
+    container_name: attendance-webui-pratham
     restart: unless-stopped
     environment:
       - TZ=Asia/Kolkata
@@ -28,4 +28,4 @@ services:
       - ./data:/app/data
     command: node server.js
     depends_on:
-      - attendance
+      - attendance_pratham

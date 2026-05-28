@@ -1,8 +1,24 @@
 {
   "enabled": true,
-  "skipDates": [],
-  "morningStart": "08:00",
-  "morningEnd": "08:30",
-  "eveningStart": "17:50",
-  "eveningEnd": "18:00"
+  "skipDates": [
+    {
+      "date": "2026-03-19",
+      "reason": "",
+      "addedAt": "2026-03-19T07:13:30.579Z"
+    },
+    {
+      "date": "2026-04-28",
+      "reason": "",
+      "addedAt": "2026-04-28T04:11:37.754Z"
+    },
+    {
+      "date": "2026-05-01",
+      "reason": "",
+      "addedAt": "2026-05-01T12:15:37.571Z"
+    }
+  ],
+  "morningStart": "08:30",
+  "morningEnd": "09:15",
+  "eveningStart": "18:15",
+  "eveningEnd": "18:43"
 }
