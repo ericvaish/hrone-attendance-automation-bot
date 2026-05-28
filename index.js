@@ -400,23 +400,45 @@ async function runAttendanceBot(punchType = 'auto') {
   }
 }
 
+// Track scheduled tasks so we can cancel them
+let scheduledTasks = [];
+let currentScheduleHash = '';
+
+// Get a hash of the schedule config to detect changes
+function getScheduleHash(config) {
+  return `${config.morningStart}-${config.morningEnd}-${config.eveningStart}-${config.eveningEnd}`;
+}
+
 // Schedule jobs based on config
-function scheduleJobs() {
+function scheduleJobs(isReschedule = false) {
   const config = loadConfig();
+  
+  // Cancel existing scheduled tasks if rescheduling
+  if (isReschedule && scheduledTasks.length > 0) {
+    log('🔄 Cancelling old schedule...');
+    scheduledTasks.forEach(task => task.stop());
+    scheduledTasks = [];
+  }
   
   const morningStart = parseTime(config.morningStart);
   const eveningStart = parseTime(config.eveningStart);
   
-  log('🚀 Starting HROne Attendance Bot');
+  if (!isReschedule) {
+    log('🚀 Starting HROne Attendance Bot');
+  } else {
+    log('🔄 Schedule updated!');
+  }
   log('📅 Schedule (Mon-Fri):');
   log(`   • Morning: ${config.morningStart} - ${config.morningEnd}`);
   log(`   • Evening: ${config.eveningStart} - ${config.eveningEnd}`);
-  log(`💬 Google Chat: ${GOOGLE_CHAT_WEBHOOK_URL ? 'Enabled' : 'Disabled'}`);
-  log('Press Ctrl+C to stop\n');
+  if (!isReschedule) {
+    log(`💬 Google Chat: ${GOOGLE_CHAT_WEBHOOK_URL ? 'Enabled' : 'Disabled'}`);
+    log('Press Ctrl+C to stop\n');
+  }
   
   // Schedule for morning (at MORNING_START time, then add random delay)
   const morningCron = `${morningStart.minute} ${morningStart.hour} * * 1-5`;
-  cron.schedule(morningCron, () => {
+  const morningTask = cron.schedule(morningCron, () => {
     const currentConfig = loadConfig(); // Reload config
     const delayMinutes = getRandomDelayBetweenTimes(currentConfig.morningStart, currentConfig.morningEnd);
     log(`📅 Morning punch scheduled: ${currentConfig.morningStart} + ${delayMinutes} min delay`);
@@ -426,10 +448,11 @@ function scheduleJobs() {
       runAttendanceBot('Morning');
     }, delayMinutes * 60 * 1000);
   });
+  scheduledTasks.push(morningTask);
   
   // Schedule for evening (at EVENING_START time, then add random delay)
   const eveningCron = `${eveningStart.minute} ${eveningStart.hour} * * 1-5`;
-  cron.schedule(eveningCron, () => {
+  const eveningTask = cron.schedule(eveningCron, () => {
     const currentConfig = loadConfig(); // Reload config
     const delayMinutes = getRandomDelayBetweenTimes(currentConfig.eveningStart, currentConfig.eveningEnd);
     log(`📅 Evening punch scheduled: ${currentConfig.eveningStart} + ${delayMinutes} min delay`);
@@ -439,14 +462,33 @@ function scheduleJobs() {
       runAttendanceBot('Evening');
     }, delayMinutes * 60 * 1000);
   });
+  scheduledTasks.push(eveningTask);
+  
+  // Update current schedule hash
+  currentScheduleHash = getScheduleHash(config);
   
   log('💤 Bot is running... waiting for scheduled times');
   log(`📍 Current time: ${new Date().toLocaleString()}`);
   
-  // Keep process alive and log heartbeat every hour
+  if (!isReschedule) {
+    // Keep process alive and log heartbeat every hour
+    setInterval(() => {
+      log('💓 Heartbeat - bot still running');
+    }, 60 * 60 * 1000);
+  }
+}
+
+// Watch for schedule changes in config file
+function watchScheduleChanges() {
   setInterval(() => {
-    log('💓 Heartbeat - bot still running');
-  }, 60 * 60 * 1000);
+    const config = loadConfig();
+    const newHash = getScheduleHash(config);
+    
+    if (currentScheduleHash && newHash !== currentScheduleHash) {
+      log('\n📢 Schedule change detected!');
+      scheduleJobs(true);
+    }
+  }, 5000); // Check every 5 seconds
 }
 
 // Watch for manual trigger file
@@ -494,4 +536,5 @@ if (isTestMode) {
 } else {
   scheduleJobs();
   watchTriggerFile();
+  watchScheduleChanges();
 }
