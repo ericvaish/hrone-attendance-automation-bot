@@ -288,8 +288,10 @@ async function markAttendanceAPI(auth, punchType = 'auto') {
     
     // Send Google Chat notification (optional)
     const punchTypeLabel = hour < 12 ? '🌅 Morning Punch-In' : '🌆 Evening Punch-Out';
+    const displayName = (process.env.DASHBOARD_USERNAME || USERNAME.split('@')[0] || 'User')
+      .replace(/^\w/, c => c.toUpperCase());
     await sendGoogleChatNotification(
-      `${punchTypeLabel}\n✅ Attendance marked at ${punchTime.replace('T', ' ')}`
+      `${punchTypeLabel}\n👤 ${displayName}\n✅ Attendance marked at ${punchTime.replace('T', ' ')}`
     );
     
     return true;
